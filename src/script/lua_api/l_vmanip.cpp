@@ -30,6 +30,91 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "mapgen/mapgen.h"
 #include "voxelalgorithms.h"
 
+#if USE_LUAJIT
+
+extern "C" int VoxelManip_get_volume(void **lvmp)
+{
+	return (*(LuaVoxelManip **)lvmp)->vm->m_area.getVolume();
+}
+
+extern "C" void VoxelManip_get_data(void **lvmp, u16 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].getContent();
+	}
+}
+
+extern "C" void VoxelManip_set_data(void **lvmp, u16 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].setContent(data[i]);
+	}
+}
+
+extern "C" void VoxelManip_get_light_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].param1;
+	}
+}
+
+extern "C" void VoxelManip_set_light_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param1 = data[i];
+	}
+}
+
+extern "C" void VoxelManip_get_param2_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].param2;
+	}
+}
+
+extern "C" void VoxelManip_set_param2_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param2 = data[i];
+	}
+}
+
+#endif
+
 // garbage collector
 int LuaVoxelManip::gc_object(lua_State *L)
 {

@@ -3979,6 +3979,22 @@ format as produced by `get_data()` et al. and is *not required* to be a table re
 Once the internal VoxelManip state has been modified to your liking, the changes can be committed back
 to the map by calling `VoxelManip:write_to_map()`.
 
+There are LuaJIT FFI-friendly versions of `get_data()`, `set_data()`, `get_light_data()`, `set_light_data()`, `get_param2_data()` and `set_param2_data()` that accept CDATA parameters instead of tables, and an auxiliary function `VoxelManip_get_volume()` to get the total size of the array. They can be used through `ffi.C` after creating these declarations (assuming `ffi` is the result of `require('ffi')`):
+
+	ffi.cdef([[
+		int VoxelManip_get_volume(void **vm);
+		void VoxelManip_get_data(void **vm, uint16_t *data);
+		void VoxelManip_set_data(void **vm, uint16_t *data);
+		void VoxelManip_get_light_data(void **vm, uint8_t *data);
+		void VoxelManip_set_light_data(void **vm, uint8_t *data);
+		void VoxelManip_get_param2_data(void **vm, uint8_t *data);
+		void VoxelManip_set_param2_data(void **vm, uint8_t *data);
+	]])
+
+For example, `ffi.C.VoxelManip_get_data(vm, data)` can be used instead of `vm:get_data(data)` if `data` is declared as CDATA using `ffi.new('uint16_t [?]', size)`, where `size` is the volume that can be obtained through `ffi.C.VoxelManip_get_volume(vm)`.
+
+It is important to remember that FFI only works for LuaJIT-enabled builds, that CDATA access is not protected against going out of bounds, and that access to FFI is restricted by mod security and therefore only available to trusted mods or if security is disabled.
+
 
 ##### Flat array format
 Let
