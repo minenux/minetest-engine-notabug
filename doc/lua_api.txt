@@ -3993,7 +3993,7 @@ There are LuaJIT FFI-friendly versions of `get_data()`, `set_data()`, `get_light
 
 For example, `ffi.C.VoxelManip_get_data(vm, data)` can be used instead of `vm:get_data(data)` if `data` is declared as CDATA using `ffi.new('uint16_t [?]', size)`, where `size` is the volume that can be obtained through `ffi.C.VoxelManip_get_volume(vm)`.
 
-It is important to remember that FFI only works for LuaJIT-enabled builds, that CDATA access is not protected against going out of bounds, and that access to FFI is restricted by mod security and therefore only available to trusted mods or if security is disabled.
+It is important to remember that FFI only works for LuaJIT-enabled builds, which can be checked for through the `jit` global variable; that CDATA arrays are zero-based and access to them is not protected against going out of bounds, and that access to FFI is restricted by mod security and therefore only available to trusted mods or if security is disabled.
 
 
 ##### Flat array format
