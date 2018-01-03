@@ -34,12 +34,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 extern "C" int VoxelManip_get_volume(void **lvmp)
 {
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
 	return (*(LuaVoxelManip **)lvmp)->vm->m_area.getVolume();
 }
 
 extern "C" void VoxelManip_get_data(void **lvmp, u16 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
 
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
@@ -54,6 +60,9 @@ extern "C" void VoxelManip_set_data(void **lvmp, u16 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
 
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
 	u32 volume = vm->m_area.getVolume();
@@ -66,6 +75,9 @@ extern "C" void VoxelManip_set_data(void **lvmp, u16 *data)
 extern "C" void VoxelManip_get_light_data(void **lvmp, u8 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
 
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
@@ -80,6 +92,9 @@ extern "C" void VoxelManip_set_light_data(void **lvmp, u8 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
 
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
 	u32 volume = vm->m_area.getVolume();
@@ -91,6 +106,9 @@ extern "C" void VoxelManip_set_light_data(void **lvmp, u8 *data)
 extern "C" void VoxelManip_get_param2_data(void **lvmp, u8 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
 
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
@@ -104,6 +122,9 @@ extern "C" void VoxelManip_get_param2_data(void **lvmp, u8 *data)
 extern "C" void VoxelManip_set_param2_data(void **lvmp, u8 *data)
 {
 	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
 
 	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
 
