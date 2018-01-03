@@ -22,6 +22,28 @@ Programming in Lua
 If you have any difficulty in understanding this, please read
 [Programming in Lua](http://www.lua.org/pil/).
 
+### LuaJIT
+
+LuaJIT is an optional Lua interpreter, not bundled or activated in the official
+Minetest builds, but it can be activated when compiling Minetest from sources.
+
+Availability of LuaJIT can be checked by mods through the global variable `jit`.
+
+Its main advantage over normal Lua is speed, thanks to its just-in-time (JIT)
+compilation. It has however a stricter memory limit for Lua objects than normal
+Lua, which is why some functions are provided to take advantage of the foreign
+function interface (FFI) of LuaJIT, to work around these limitations, should it
+be necessary. For an introduction to FFI, please read [FFI
+Library](http://luajit.org/ext_ffi.html) and associated links. To take
+advantage of this feature, you need to use `require`, which is one of the
+functions blocked by mod security, therefore when security is active, only mods
+marked as trusted can use FFI.
+
+Keep in mind that FFI cdata arrays are 0-based, rather than 1-based, and access
+to them is not protected against going out of bounds; accessing an element
+beyond the array boundary can crash Minetest.
+
+
 Startup
 -------
 Mods are loaded during server startup from the mod load paths by running
@@ -3920,6 +3942,35 @@ nil, this table will be used to store the result instead of creating a new table
   `noise:calc3dMap({x=1000, y=1000, z=1000})`
   `noisevals = noise:getMapSlice({x=24, z=1}, {x=1, z=1})`
 
+There are LuaJIT FFI-friendly versions of `get2dMap_flat()`, `get3dMap_flat()`
+and `getMapSlice()` that accept CDATA objects instead of Lua tables. They can
+be accessed through `ffi.C` after the following declarations (assuming `ffi` is
+the result of `require('ffi')`):
+
+	ffi.cdef([[
+		typedef uint16_t u16;
+
+		void PerlinNoiseMap_get2dMap_flat(void **pnmp, double px, double py,
+	                float *buffer);
+		void PerlinNoiseMap_get3dMap_flat(void **pnmp,
+			double px, double py, double pz, float *buffer);
+		void PerlinNoiseMap_getMapSlice(void **pnmp,
+			u16 ofsx, u16 ofsy, u16 ofsz, u16 sizex, u16 sizey, u16 sizez,
+			float *buffer);
+	]])
+
+For `PerlinNoiseMap_getMapSlice()` the offsets are also 1-based; if you want to
+use the whole extent for a coordinate, use 0 in that place where you would omit
+the coordinate in the Lua counterpart.
+
+For example: `ffi.C.PerlinNoiseMap_get2dMap_flat(pnm, 5, 7, buffer)` could be
+used in place of `pnm:get2dMap_flat({x = 5, y = 7}, buffer)` if `buffer` is
+allocated as a CDATA array instead of a table.
+
+Make sure the buffers allocated have the correct type (`float *`) and enough
+space to hold the requested data.
+
+
 ### `VoxelManip`
 
 #### About VoxelManip
@@ -3979,12 +4030,12 @@ format as produced by `get_data()` et al. and is *not required* to be a table re
 Once the internal VoxelManip state has been modified to your liking, the changes can be committed back
 to the map by calling `VoxelManip:write_to_map()`.
 
-There are LuaJIT FFI-friendly versions of `get_data()`, `set_data()`, 
-`get_light_data()`, `set_light_data()`, `get_param2_data()` and 
-`set_param2_data()` that accept CDATA parameters instead of tables, and 
-an auxiliary function `VoxelManip_get_volume()` to get the total size of 
-the array. They can be used through `ffi.C` after creating these 
-declarations (assuming `ffi` is the result of `require('ffi')`):
+There are LuaJIT FFI-friendly versions of `get_data()`, `set_data()`,
+`get_light_data()`, `set_light_data()`, `get_param2_data()` and
+`set_param2_data()` that accept CDATA parameters instead of tables, and an
+auxiliary function `VoxelManip_get_volume()` to get the total size of the
+array. They can be used through `ffi.C` after creating these declarations
+(assuming `ffi` is the result of `require('ffi')`):
 
 	ffi.cdef([[
 		int VoxelManip_get_volume(void **vm);
@@ -3996,17 +4047,12 @@ declarations (assuming `ffi` is the result of `require('ffi')`):
 		void VoxelManip_set_param2_data(void **vm, uint8_t *data);
 	]])
 
-For example, `ffi.C.VoxelManip_get_data(vm, data)` can be used instead 
-of `vm:get_data(data)` if `data` is declared as CDATA using 
-`ffi.new('uint16_t [?]', size)`, where `size` is the volume that can be 
-obtained through `ffi.C.VoxelManip_get_volume(vm)`.
+For example, `ffi.C.VoxelManip_get_data(vm, data)` can be used instead of
+`vm:get_data(data)` if `data` is allocated as a CDATA array of sufficient size.
+The size necessary can be obtained through `ffi.C.VoxelManip_get_volume(vm)`.
 
-It is important to remember that FFI only works for LuaJIT-enabled 
-builds, which can be checked for through the `jit` global variable; that 
-CDATA arrays are zero-based and access to them is not protected against 
-going out of bounds, and that access to FFI is restricted by mod 
-security and therefore only available to trusted mods or if security is 
-disabled.
+Make sure the buffers allocated have the correct pointer type (`uint16_t *` for
+`get_data()` and `set_data()`, `uint8_t *` for the others).
 
 
 ##### Flat array format
