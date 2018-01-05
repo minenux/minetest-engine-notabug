@@ -24,8 +24,9 @@ If you have any difficulty in understanding this, please read
 
 ### LuaJIT
 
-LuaJIT is an optional Lua interpreter, not bundled or activated in the official
-Minetest builds, but it can be activated when compiling Minetest from sources.
+LuaJIT is an optional Lua interpreter, only bundled and activated in the
+Windows version of the official Minetest builds, but it can be activated in
+other platforms when compiling Minetest from sources.
 
 Availability of LuaJIT can be checked by mods through the global variable `jit`.
 
@@ -36,8 +37,8 @@ function interface (FFI) of LuaJIT, to work around these limitations, should it
 be necessary. For an introduction to FFI, please read [FFI
 Library](http://luajit.org/ext_ffi.html) and associated links. To take
 advantage of this feature, you need to use `require`, which is one of the
-functions blocked by mod security, therefore when security is active, only mods
-marked as trusted can use FFI.
+functions restricted by mod security, therefore when security is active, only
+mods marked as trusted can use FFI.
 
 Keep in mind that FFI cdata arrays are 0-based, rather than 1-based, and access
 to them is not protected against going out of bounds; accessing an element
