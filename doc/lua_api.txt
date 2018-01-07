@@ -2470,6 +2470,10 @@ Strings that need to be translated can contain several escapes, preceded by `@`.
         -- ^ add_entity supports passing initial staticdata to on_activate
            no_chat_message_prediction = true,
         -- ^ Chat messages are no longer predicted
+           ffi_voxel_manip = true
+        -- ^ Supports LuaJIT FFI C functions for LuaVoxelManip
+           ffi_perlin_flat_map = true
+        -- ^ Supports LuaJIT FFI C functions for PerlinNoiseMap
         }
 * `minetest.has_feature(arg)`: returns `boolean, missing_features`
     * `arg`: string or table in format `{foo=true, bar=true}`
@@ -3952,7 +3956,7 @@ the result of `require('ffi')`):
 		typedef uint16_t u16;
 
 		void PerlinNoiseMap_get2dMap_flat(void **pnmp, double px, double py,
-	                float *buffer);
+			float *buffer);
 		void PerlinNoiseMap_get3dMap_flat(void **pnmp,
 			double px, double py, double pz, float *buffer);
 		void PerlinNoiseMap_getMapSlice(void **pnmp,
