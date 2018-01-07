@@ -3949,20 +3949,16 @@ nil, this table will be used to store the result instead of creating a new table
 
 There are LuaJIT FFI-friendly versions of `get2dMap_flat()`, `get3dMap_flat()`
 and `getMapSlice()` that accept CDATA objects instead of Lua tables. They can
-be accessed through `ffi.C` after the following declarations (assuming `ffi` is
-the result of `require('ffi')`):
+be accessed through `ffi.C` (assuming `ffi` is the result of `require('ffi')`).
+The prototypes (already defined by the core) are:
 
-	ffi.cdef([[
-		typedef uint16_t u16;
-
-		void PerlinNoiseMap_get2dMap_flat(void **pnmp, double px, double py,
-			float *buffer);
-		void PerlinNoiseMap_get3dMap_flat(void **pnmp,
-			double px, double py, double pz, float *buffer);
-		void PerlinNoiseMap_getMapSlice(void **pnmp,
-			u16 ofsx, u16 ofsy, u16 ofsz, u16 sizex, u16 sizey, u16 sizez,
-			float *buffer);
-	]])
+	void PerlinNoiseMap_get2dMap_flat(void **pnmp, double px, double py,
+		float *buffer);
+	void PerlinNoiseMap_get3dMap_flat(void **pnmp,
+		double px, double py, double pz, float *buffer);
+	void PerlinNoiseMap_getMapSlice(void **pnmp,
+		u16 ofsx, u16 ofsy, u16 ofsz, u16 sizex, u16 sizey, u16 sizez,
+		float *buffer);
 
 For `PerlinNoiseMap_getMapSlice()` the offsets are also 1-based; if you want to
 use the whole extent for a coordinate, use 0 in that place where you would omit
@@ -4039,25 +4035,23 @@ There are LuaJIT FFI-friendly versions of `get_data()`, `set_data()`,
 `get_light_data()`, `set_light_data()`, `get_param2_data()` and
 `set_param2_data()` that accept CDATA parameters instead of tables, and an
 auxiliary function `VoxelManip_get_volume()` to get the total size of the
-array. They can be used through `ffi.C` after creating these declarations
-(assuming `ffi` is the result of `require('ffi')`):
+array. They can be used through `ffi.C` (assuming `ffi` is the result of
+`require('ffi')`). The prototypes (already defined by the core) are:
 
-	ffi.cdef([[
-		int VoxelManip_get_volume(void **vm);
-		void VoxelManip_get_data(void **vm, uint16_t *data);
-		void VoxelManip_set_data(void **vm, uint16_t *data);
-		void VoxelManip_get_light_data(void **vm, uint8_t *data);
-		void VoxelManip_set_light_data(void **vm, uint8_t *data);
-		void VoxelManip_get_param2_data(void **vm, uint8_t *data);
-		void VoxelManip_set_param2_data(void **vm, uint8_t *data);
-	]])
+	int VoxelManip_get_volume(void **vm);
+	void VoxelManip_get_data(void **vm, u16 *data);
+	void VoxelManip_set_data(void **vm, u16 *data);
+	void VoxelManip_get_light_data(void **vm, u8 *data);
+	void VoxelManip_set_light_data(void **vm, u8 *data);
+	void VoxelManip_get_param2_data(void **vm, u8 *data);
+	void VoxelManip_set_param2_data(void **vm, u8 *data);
 
 For example, `ffi.C.VoxelManip_get_data(vm, data)` can be used instead of
 `vm:get_data(data)` if `data` is allocated as a CDATA array of sufficient size.
 The size necessary can be obtained through `ffi.C.VoxelManip_get_volume(vm)`.
 
-Make sure the buffers allocated have the correct pointer type (`uint16_t *` for
-`get_data()` and `set_data()`, `uint8_t *` for the others).
+Make sure the buffers allocated have the correct pointer type (`u16 *` for
+`get_data()` and `set_data()`, `u8 *` for the others).
 
 
 ##### Flat array format
