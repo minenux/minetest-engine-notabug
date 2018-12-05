@@ -44,7 +44,17 @@ bool parseDependsString(std::string &dep, std::unordered_set<char> &symbols)
 	return !dep.empty();
 }
 
-void parseModContents(ModSpec &spec)
+/*
+ * Build a tree of mods, where the first level of children is an array of all
+ * the mods and modpacks in the given path, and subsequent levels are the
+ * modpack contents and get stored in the corresponding child's
+ * ModSpec.modpack_content.
+ */
+static std::map<std::string, ModSpec> getModsInPath(const std::string &path,
+	const std::string &modpack_path = MODPACK_ROOT_MODS);
+
+// Retrieves depends, optdepends, is_modpack and modpack_content
+void parseModContents(ModSpec &spec, const std::string &modpack_path)
 {
 	// NOTE: this function works in mutual recursion with getModsInPath
 	Settings info;
@@ -69,7 +79,9 @@ void parseModContents(ModSpec &spec)
 	if (modpack_is.good()) {    // a modpack, recursively get the mods in it
 		modpack_is.close(); // We don't actually need the file
 		spec.is_modpack = true;
-		spec.modpack_content = getModsInPath(spec.path, true);
+		if (!modpack_path.empty())
+			spec.modpack_content = getModsInPath(spec.path,
+					modpack_path + MODPACK_PATH_SEP + spec.name);
 		// modpacks have no dependencies; they are defined and
 		// tracked separately for each mod in the modpack
 
@@ -134,8 +146,8 @@ void parseModContents(ModSpec &spec)
 	}
 }
 
-std::map<std::string, ModSpec> getModsInPath(
-		const std::string &path, bool part_of_modpack)
+static std::map<std::string, ModSpec> getModsInPath(
+		const std::string &path, const std::string &modpack_path)
 {
 	// NOTE: this function works in mutual recursion with parseModContents
 
@@ -156,14 +168,18 @@ std::map<std::string, ModSpec> getModsInPath(
 		modpath.clear();
 		modpath.append(path).append(DIR_DELIM).append(modname);
 
-		ModSpec spec(modname, modpath, part_of_modpack);
-		parseModContents(spec);
+		ModSpec spec(modname, modpath, modpack_path);
+		parseModContents(spec, modpack_path);
 		result.insert(std::make_pair(modname, spec));
 	}
 	return result;
 }
 
-std::vector<ModSpec> flattenMods(std::map<std::string, ModSpec> mods)
+/*
+ * Flatten the tree obtained with getModsInPath, to a one-dimensional array
+ * where only mods and not modpacks are present.
+ */
+static std::vector<ModSpec> flattenMods(const std::map<std::string, ModSpec> &mods)
 {
 	std::vector<ModSpec> result;
 	for (const auto &it : mods) {
@@ -196,9 +212,9 @@ void ModConfiguration::printUnsatisfiedModsError() const
 	}
 }
 
-void ModConfiguration::addModsInPath(const std::string &path)
+void ModConfiguration::addModsInPath(const std::string &path, const std::string mp_root)
 {
-	addMods(flattenMods(getModsInPath(path)));
+	addMods(flattenMods(getModsInPath(path, mp_root)));
 }
 
 void ModConfiguration::addMods(const std::vector<ModSpec> &new_mods)
@@ -220,7 +236,9 @@ void ModConfiguration::addMods(const std::vector<ModSpec> &new_mods)
 		std::set<std::string> seen_this_iteration;
 
 		for (const ModSpec &mod : new_mods) {
-			if (mod.part_of_modpack != (bool)want_from_modpack)
+			bool part_of_modpack = (mod.modpack_path.find(MODPACK_PATH_SEP) !=
+					std::string::npos);
+			if (part_of_modpack != (bool)want_from_modpack)
 				continue;
 
 			if (existing_mods.count(mod.name) == 0) {
@@ -265,25 +283,33 @@ void ModConfiguration::addModsFromConfig(
 		const std::string &settings_path, const std::set<std::string> &mods)
 {
 	Settings conf;
-	std::set<std::string> load_mod_names;
+	std::unordered_map<std::string, std::string> load_mod_names;
 
 	conf.readConfigFile(settings_path.c_str());
 	std::vector<std::string> names = conf.getNames();
 	for (const std::string &name : names) {
-		if (name.compare(0, 9, "load_mod_") == 0 && conf.getBool(name))
-			load_mod_names.insert(name.substr(9));
+		if (name.compare(0, 9, "load_mod_") == 0) {
+			std::string modpack_path = conf.get(name);
+			if (modpack_path != "false" && modpack_path != "nil") {
+				load_mod_names.insert(std::make_pair(name.substr(9), modpack_path));
+			}
+		}
 	}
 
 	std::vector<ModSpec> addon_mods;
 	for (const std::string &i : mods) {
-		std::vector<ModSpec> addon_mods_in_path = flattenMods(getModsInPath(i));
-		for (std::vector<ModSpec>::const_iterator it = addon_mods_in_path.begin();
-				it != addon_mods_in_path.end(); ++it) {
-			const ModSpec &mod = *it;
-			if (load_mod_names.count(mod.name) != 0)
-				addon_mods.push_back(mod);
-			else
-				conf.setBool("load_mod_" + mod.name, false);
+		std::vector<ModSpec> addon_mods_in_path = flattenMods(getModsInPath(i,
+				MODPACK_ROOT_MODS));
+		for (const ModSpec &mod : addon_mods_in_path) {
+			if (load_mod_names.find(mod.name) != load_mod_names.end()) {
+				const std::string &modpack_path = load_mod_names[mod.name];
+				if (is_yes(modpack_path)  // old search method
+						|| modpack_path == mod.modpack_path) {
+					addon_mods.push_back(mod);
+				}
+			} else {
+				conf.set("load_mod_" + mod.name, "false");
+			}
 		}
 	}
 	conf.updateConfigFile(settings_path.c_str());
@@ -302,8 +328,8 @@ void ModConfiguration::addModsFromConfig(
 
 	if (!load_mod_names.empty()) {
 		errorstream << "The following mods could not be found:";
-		for (const std::string &mod : load_mod_names)
-			errorstream << " \"" << mod << "\"";
+		for (const std::pair<std::string, std::string> &mod : load_mod_names)
+			errorstream << " \"" << mod.first << "\"";
 		errorstream << std::endl;
 	}
 }

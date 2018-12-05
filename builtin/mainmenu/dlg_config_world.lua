@@ -132,20 +132,33 @@ local function handle_buttons(this, fields)
 
 		local rawlist = this.data.list:get_raw_list()
 
+		-- mod_decisions helps keeping track of what value to assign to the
+		-- load_mod_modname setting, as only one mod with a particular name
+		-- can be set.
+		-- Values: nil = not yet decided, otherwise the value of mod.enabled
+		-- for the mod that was chosen.
+		local mod_decisions = {}
+
 		for i = 1, #rawlist do
 			local mod = rawlist[i]
+			local load_mod_setting = "load_mod_" .. mod.name
 			if not mod.is_modpack and
 					not mod.is_game_content then
 				if modname_valid(mod.name) then
-					worldfile:set("load_mod_" .. mod.name,
-							tostring(mod.enabled))
+					local decision = mod_decisions[mod.name]
+					-- Is it either enabled or the first one seen?
+					if decision == nil or mod.enabled then
+						mod_decisions[mod.name] = mod.enabled
+						worldfile:set(load_mod_setting, mod.enabled and
+							pkgmgr.get_modpack_path(mod) or "false")
+					end
 				elseif mod.enabled then
 					gamedata.errormessage = fgettext_ne("Failed to enable mo" ..
 							"d \"$1\" as it contains disallowed characters. " ..
 							"Only chararacters [a-z0-9_] are allowed.",
 							mod.name)
 				end
-				mods["load_mod_" .. mod.name] = nil
+				mods[load_mod_setting] = nil
 			end
 		end
 

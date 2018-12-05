@@ -160,6 +160,11 @@ function pkgmgr.get_base_folder(temppath)
 end
 
 --------------------------------------------------------------------------------
+function pkgmgr.get_modpack_path(mod)
+	return mod.modpack and "mods." .. mod.modpack or "mods"
+end
+
+--------------------------------------------------------------------------------
 function pkgmgr.isValidModname(modpath)
 	if modpath:find("-") ~= nil then
 		return false
@@ -275,7 +280,7 @@ function pkgmgr.render_packagelist(render_list)
 
 			for j = 1, #rawlist, 1 do
 				if rawlist[j].modpack == list[i].name and
-						rawlist[j].enabled ~= true then
+						not rawlist[j].enabled then
 					-- Modpack not entirely enabled so showing as grey
 					color = mt_color_grey
 					break
@@ -332,21 +337,34 @@ function pkgmgr.enable_mod(this, toset)
 	-- toggle or en/disable the mod
 	if not mod.is_modpack then
 		if toset == nil then
-			mod.enabled = not mod.enabled
-		else
-			mod.enabled = toset
+			toset = not mod.enabled
+		end
+		-- Disable all other mods with the same name in other paths
+		-- and enable this one.
+		for i, mod_to_set in ipairs(pkgmgr.mods_by_name[mod.name]) do
+			if not mod_to_set.is_game_content then
+				mod_to_set.enabled = mod_to_set.modpack == mod.modpack and toset
+			end
 		end
 		return
 	end
 
 	-- toggle or en/disable every mod in the modpack, interleaved unsupported
 	local list = this.data.list:get_raw_list()
-	for i = 1, #list do
-		if list[i].modpack == mod.name then
+	for i, this_mod in ipairs(list) do
+		if not this_mod.is_game_content and this_mod.modpack == mod.name then
+
 			if toset == nil then
-				toset = not list[i].enabled
+				toset = not this_mod.enabled
 			end
-			list[i].enabled = toset
+			-- For each mod in the modpack, disable all mods with the same
+			-- name in other paths and enable this one.
+			for i, mod_to_set in ipairs(pkgmgr.mods_by_name[this_mod.name]) do
+				if not mod_to_set.is_game_content then
+					local same_mp = mod_to_set.modpack == this_mod.modpack
+					mod_to_set.enabled = same_mp and toset
+				end
+			end
 		end
 	end
 end
@@ -366,7 +384,8 @@ function pkgmgr.get_worldconfig(worldpath)
 		if key == "gameid" then
 			worldconfig.id = value
 		elseif key:sub(0, 9) == "load_mod_" then
-			worldconfig.global_mods[key] = core.is_yes(value)
+			worldconfig.global_mods[key] = value ~= "false" and value ~= "nil"
+				and value
 		else
 			worldconfig[key] = value
 		end
@@ -554,24 +573,66 @@ function pkgmgr.preparemodlist(data)
 
 	local worldfile = Settings(filename)
 
-	for key,value in pairs(worldfile:to_table()) do
-		if key:sub(1, 9) == "load_mod_" then
-			key = key:sub(10)
-			local element = nil
-			for i=1,#retval,1 do
-				if retval[i].name == key and
-					not retval[i].is_modpack then
-					element = retval[i]
-					break
+	pkgmgr.mods_by_name = {}
+	-- Note mods_active_by_name tracks only mods with a setting value of "true".
+	local mods_active_by_name = {}
+	-- missing_configured_mods tracks the mods that have a load_mod_XXX but
+	-- aren't found in any folder
+	local missing_configured_mods = worldfile:to_table()
+
+	for i, mod in ipairs(retval) do
+		if not mod.is_modpack then
+			pkgmgr.mods_by_name[mod.name] = pkgmgr.mods_by_name[mod.name] or {}
+			table.insert(pkgmgr.mods_by_name[mod.name], mod)
+			local key = "load_mod_" .. mod.name
+			local value = worldfile:get(key)
+			if value then
+				local is_true = core.is_yes(value)
+				if is_true and mod.typ == "global_mod" then
+					mods_active_by_name[mod.name] = mods_active_by_name[mod.name] or {}
+					table.insert(mods_active_by_name[mod.name], mod)
 				end
-			end
-			if element ~= nil then
-				element.enabled = core.is_yes(value)
-			else
-				core.log("info", "Mod: " .. key .. " " .. dump(value) .. " but not found")
+				mod.enabled = is_true or value == pkgmgr.get_modpack_path(mod)
+				if mod.enabled then
+					-- Configured another one.
+					missing_configured_mods[key] = nil
+				end
 			end
 		end
 	end
+
+	for key, value in pairs(missing_configured_mods) do
+		if key:sub(1, 9) == "load_mod_" and value ~= "false" and
+				value ~= "nil" then
+			core.log("info", "Config says that mod \"" .. key:sub(10)
+				.. "\" should be loaded from " .. dump(value)
+				.. " but it was not found there")
+		end
+	end
+
+	for name, conflicting in pairs(mods_active_by_name) do
+		-- No conflict if there's just one.
+		local nconflicting = #conflicting
+		if nconflicting > 1 then
+			-- Resolve conflict following the core's algorithm:
+			-- 1. If it is in a modpack, disable it.
+			for j = nconflicting, 1, -1 do
+				if conflicting[j].modpack then
+					conflicting[j].enabled = false
+					-- Remove element from list in O(1) operations.
+					conflicting[j] = conflicting[nconflicting]
+					conflicting[nconflicting] = nil
+					nconflicting = nconflicting - 1
+				end
+			end
+			-- 2. Disable all in root if more than one.
+			if nconflicting > 1 then
+				for j = 1, nconflicting do
+					conflicting[j].enabled = false
+				end
+ 			end
+ 		end
+ 	end
 
 	return retval
 end

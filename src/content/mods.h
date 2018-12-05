@@ -33,6 +33,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define MODNAME_ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyz0123456789_"
 
+// Modpack path root names for the locations where mods are. These roots are
+// not real filesystem paths, just names to distinguish the origin of the
+// mods. Modpack paths are separated by dots, e.g.
+//    mods.my_modpack.my_nested_modpack
+#define MODPACK_ROOT_GAME  "game"           // unimplemented
+#define MODPACK_ROOT_WORLD "world"          // unimplemented
+#define MODPACK_ROOT_MODS  "mods"
+#define MODPACK_ROOT_CLIENT_MODS "cmods"    // unimplemented
+#define MODPACK_PATH_SEP   "."
+
 struct ModSpec
 {
 	std::string name;
@@ -46,7 +56,7 @@ struct ModSpec
 	std::unordered_set<std::string> optdepends;
 	std::unordered_set<std::string> unsatisfied_depends;
 
-	bool part_of_modpack = false;
+	std::string modpack_path;
 	bool is_modpack = false;
 
 	// if modpack:
@@ -55,20 +65,16 @@ struct ModSpec
 			name(name), path(path)
 	{
 	}
-	ModSpec(const std::string &name, const std::string &path, bool part_of_modpack) :
-			name(name), path(path), part_of_modpack(part_of_modpack)
+	ModSpec(const std::string &name, const std::string &path,
+			const std::string &modpack_path) :
+			name(name), path(path), modpack_path(modpack_path)
 	{
 	}
 };
 
-// Retrieves depends, optdepends, is_modpack and modpack_content
-void parseModContents(ModSpec &mod);
-
-std::map<std::string, ModSpec> getModsInPath(
-		const std::string &path, bool part_of_modpack = false);
-
-// replaces modpack Modspecs with their content
-std::vector<ModSpec> flattenMods(std::map<std::string, ModSpec> mods);
+// Retrieves depends, optdepends, is_modpack and modpack_content.
+// Empty modpack_path means the caller is not interested in modpack contents.
+void parseModContents(ModSpec &spec, const std::string &modpack_path = "");
 
 // a ModConfiguration is a subset of installed mods, expected to have
 // all dependencies fullfilled, so it can be used as a list of mods to
@@ -92,7 +98,7 @@ protected:
 	ModConfiguration(const std::string &worldpath);
 	// adds all mods in the given path. used for games, modpacks
 	// and world-specific mods (worldmods-folders)
-	void addModsInPath(const std::string &path);
+	void addModsInPath(const std::string &path, const std::string mp_root);
 
 	// adds all mods in the set.
 	void addMods(const std::vector<ModSpec> &new_mods);

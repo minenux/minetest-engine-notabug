@@ -138,6 +138,13 @@ Example content (added indentation and - explanations):
   load_mod_<mod> = false        - whether <mod> is to be loaded in this world
   auth_backend = files          - which DB backend to use for authentication data
 
+For load_mod_<mod>, the possible values are:
+  false - Do not load the mod.
+  mods  - Load the mod with name <mod> from the mods folder itself, ignore others.
+  mods.<modpackname> - Load the mod from the specified modpack in the mods folder.
+  true  - Load the mod from wherever it is found (may cause conflicts if the
+          same mod appears also in some other place).
+
 Player File Format
 ===================
 
