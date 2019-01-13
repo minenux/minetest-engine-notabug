@@ -289,7 +289,7 @@ void ModConfiguration::addModsFromConfig(
 	std::vector<std::string> names = conf.getNames();
 	for (const std::string &name : names) {
 		if (name.compare(0, 9, "load_mod_") == 0) {
-			std::string modpack_path = conf.get(name);
+			const std::string &modpack_path = conf.get(name);
 			if (modpack_path != "false" && modpack_path != "nil") {
 				load_mod_names.insert(std::make_pair(name.substr(9), modpack_path));
 			}
@@ -301,8 +301,9 @@ void ModConfiguration::addModsFromConfig(
 		std::vector<ModSpec> addon_mods_in_path = flattenMods(getModsInPath(i,
 				MODPACK_ROOT_MODS));
 		for (const ModSpec &mod : addon_mods_in_path) {
-			if (load_mod_names.find(mod.name) != load_mod_names.end()) {
-				const std::string &modpack_path = load_mod_names[mod.name];
+			auto i = load_mod_names.find(mod.name);
+			if (i != load_mod_names.end()) {
+				const std::string &modpack_path = i->second;
 				if (is_yes(modpack_path)  // old search method
 						|| modpack_path == mod.modpack_path) {
 					addon_mods.push_back(mod);
@@ -329,7 +330,8 @@ void ModConfiguration::addModsFromConfig(
 	if (!load_mod_names.empty()) {
 		errorstream << "The following mods could not be found:";
 		for (const std::pair<std::string, std::string> &mod : load_mod_names)
-			errorstream << " \"" << mod.first << "\"";
+			errorstream << " \"" << mod.first << "\" from modpack \"" <<
+				mod.second << "\"";
 		errorstream << std::endl;
 	}
 }
