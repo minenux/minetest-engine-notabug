@@ -1002,13 +1002,13 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 				+ m_prop.automatic_face_movement_dir_offset;
 		float max_rotation_per_sec =
 				m_prop.automatic_face_movement_max_rotation_per_sec;
-		if (max_rotation_per_sec > 0) {
-			float max_rotation_delta = dtime * max_rotation_per_sec;
-
-			wrappedApproachShortest(m_rotation.Y, target_yaw, max_rotation_delta, 360.f);
-		} else
-			// Negative values of ...max_rotation_per_sec mean disabled.
+		if (max_rotation_per_sec > 0)
+			wrappedApproachShortest(m_rotation.Y, target_yaw,
+					dtime * max_rotation_per_sec, 360.f);
+		else {
+			// Non-positive values of max_rotation_per_sec mean disabled.
 			m_rotation.Y = target_yaw;
+		}
 
 		rot_translator.val_current = m_rotation;
 

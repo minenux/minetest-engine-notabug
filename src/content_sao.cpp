@@ -461,12 +461,13 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 			float max_rotation_per_sec =
 					m_prop.automatic_face_movement_max_rotation_per_sec;
 			if (max_rotation_per_sec > 0) {
-				float max_rotation_delta = dtime * max_rotation_per_sec;
 				m_rotation.Y = wrapDegrees_0_360(m_rotation.Y);
-				wrappedApproachShortest(m_rotation.Y, target_yaw, max_rotation_delta, 360.f);
-			} else
-				// Negative values of ...max_rotation_per_sec mean disabled.
+				wrappedApproachShortest(m_rotation.Y, target_yaw,
+						dtime * max_rotation_per_sec, 360.f);
+			} else {
+				// Non-positive values of max_rotation_per_sec mean disabled.
 				m_rotation.Y = target_yaw;
+			}
 		}
 	}
 
