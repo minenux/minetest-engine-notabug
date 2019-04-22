@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#include "config.h"
 #include "lua_api/l_noise.h"
 #include "lua_api/l_internal.h"
 #include "common/c_converter.h"
@@ -400,6 +401,94 @@ luaL_Reg LuaPerlinNoiseMap::methods[] = {
 	luamethod_aliased(LuaPerlinNoiseMap, get_map_slice,   getMapSlice),
 	{0,0}
 };
+
+#if USE_LUAJIT
+
+extern "C" {
+
+void PerlinNoiseMap_get_2d_map_flat(void **pnmp, double px, double py, float *buffer)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (pnmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	LuaPerlinNoiseMap *o = *(LuaPerlinNoiseMap **)pnmp;
+	Noise *n = o->getNoise();
+
+	n->perlinMap2D(px, py);
+	memcpy(buffer, n->result, n->sx * n->sy * sizeof(float));
+}
+
+void PerlinNoiseMap_get_3d_map_flat(void **pnmp, double px, double py, double pz, float *buffer)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (pnmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	LuaPerlinNoiseMap *o = *(LuaPerlinNoiseMap **)pnmp;
+	Noise *n = o->getNoise();
+
+	n->perlinMap3D(px, py, pz);
+	memcpy(buffer, n->result, n->sx * n->sy * n->sz * sizeof(float));
+}
+
+void PerlinNoiseMap_get_map_slice(void **pnmp, u16 px, u16 py, u16 pz, u16 sx, u16 sy, u16 sz, float *buffer)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (pnmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	LuaPerlinNoiseMap *o = *(LuaPerlinNoiseMap **)pnmp;
+	Noise *n = o->getNoise();
+
+	v3u16 pmin, pmax(n->sx, n->sy, n->sz);
+	if (px > 0) {
+		px--;
+		pmin.X = px;
+		pmax.X = std::min((u32)(px + sx), (u32)n->sx);
+	}
+
+	if (py > 0) {
+		py--;
+		pmin.Y = py;
+		pmax.Y = std::min((u32)(py + sy), (u32)n->sy);
+	}
+
+	if (pz > 0) {
+		pz--;
+		pmin.Z = pz;
+		pmax.Z = std::min((u32)(pz + sz), (u32)n->sz);
+	}
+
+	if (pmin.X >= pmax.X)
+		return;
+
+	const size_t xrange = pmax.X - pmin.X;
+
+	const  size_t xsize   = xrange * sizeof(float);
+	const  size_t ystride = n->sx;
+	const  size_t zstride = n->sy  * ystride;
+	const  size_t zstart  = pmin.Z * zstride;
+	const  size_t zlimit  = pmax.Z * zstride;
+	size_t elem_index  = 0;
+
+	for (size_t zbase = zstart; zbase < zlimit; zbase += zstride) {
+		const size_t ystart = pmin.Y * ystride + zbase;
+		const size_t ylimit = pmax.Y * ystride + zbase;
+		for (size_t ybase = ystart; ybase < ylimit; ybase += ystride) {
+			memcpy(&buffer[elem_index], &n->result[ybase + pmin.X], xsize);
+			elem_index += xrange;
+		}
+	}
+}
+
+
+} // extern "C"
+
+#endif // USE_LUAJIT
 
 ///////////////////////////////////////
 /*
