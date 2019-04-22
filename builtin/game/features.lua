@@ -14,6 +14,11 @@ core.features = {
 	object_independent_selectionbox = true,
 }
 
+if jit then
+	core.features.ffi_voxel_manip = true
+	core.features.ffi_perlin_flat_map = true
+end
+
 function core.has_feature(arg)
 	if type(arg) == "table" then
 		local missing_features = {}
