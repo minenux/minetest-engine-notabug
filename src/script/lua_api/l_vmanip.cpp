@@ -30,6 +30,116 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "mapgen/mapgen.h"
 #include "voxelalgorithms.h"
 
+#if USE_LUAJIT
+
+extern "C" {
+
+s32 VoxelManip_get_volume(void **lvmp)
+{
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	return (*(LuaVoxelManip **)lvmp)->vm->m_area.getVolume();
+}
+
+void VoxelManip_get_data(void **lvmp, u16 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].getContent();
+	}
+}
+
+void VoxelManip_set_data(void **lvmp, u16 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].setContent(data[i]);
+	}
+}
+
+void VoxelManip_get_light_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].param1;
+	}
+}
+
+void VoxelManip_set_light_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param1 = data[i];
+	}
+}
+
+void VoxelManip_get_param2_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+
+	for (u32 i = 0; i != volume; i++) {
+		data[i] = vm->m_data[i].param2;
+	}
+}
+
+void VoxelManip_set_param2_data(void **lvmp, u8 *data)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	MMVManip *vm = (*(LuaVoxelManip **)lvmp)->vm;
+
+	u32 volume = vm->m_area.getVolume();
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param2 = data[i];
+	}
+}
+
+} // extern "C"
+
+#endif
+
 // garbage collector
 int LuaVoxelManip::gc_object(lua_State *L)
 {
