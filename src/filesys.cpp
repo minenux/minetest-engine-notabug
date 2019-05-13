@@ -712,6 +712,7 @@ bool safeWriteToFile(const std::string &path, const std::string &content)
 	}
 
 	bool rename_success = false;
+	int err = 0;
 
 	// Move the finished temporary file over the real file
 #ifdef _WIN32
@@ -727,14 +728,19 @@ bool safeWriteToFile(const std::string &path, const std::string &content)
 		sleep_ms(1);
 		++number_attempts;
 	}
+	if (!rename_success)
+		err = GetLastError();
 #else
 	// On POSIX compliant systems rename() is specified to be able to swap the
 	// file in place of the destination file, making this a truly error-proof
 	// transaction.
 	rename_success = rename(tmp_file.c_str(), path.c_str()) == 0;
+	if (!rename_success)
+		err = errno;
 #endif
 	if (!rename_success) {
-		warningstream << "Failed to write to file: " << path.c_str() << std::endl;
+		warningstream << "Failed to write to file: " << path.c_str()
+				<< " (error code: " << err << ")" << std::endl;
 		// Remove the temporary file because moving it over the target file
 		// failed.
 		remove(tmp_file.c_str());
