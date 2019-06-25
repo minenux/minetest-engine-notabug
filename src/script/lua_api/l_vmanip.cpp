@@ -30,6 +30,26 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "mapgen/mapgen.h"
 #include "voxelalgorithms.h"
 
+extern "C" {
+
+EXPORT void VoxelManip_get_pointer(void **lvmp, void **ptr)
+{
+	if (lvmp == nullptr || ptr == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	*ptr = (*(LuaVoxelManip **)lvmp)->vm->m_data;
+}
+
+EXPORT s32 VoxelManip_get_volume(void **lvmp)
+{
+	if (lvmp == nullptr)
+		throw ModError("Nil pointer in C call");
+
+	return (*(LuaVoxelManip **)lvmp)->vm->m_area.getVolume();
+}
+
+} // extern "C"
+
 // garbage collector
 int LuaVoxelManip::gc_object(lua_State *L)
 {
