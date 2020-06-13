@@ -1,6 +1,18 @@
 
 vector = {}
 
+-- Cache math functions in locals
+local vector = vector
+local math_sin = math.sin
+local math_cos = math.cos
+local math_asin = math.asin
+local math_atan2 = math.atan2
+local math_pi = math.pi
+local math_sqrt = math.sqrt
+local math_floor = math.floor
+local math_hypot = math.hypot
+assert(math_hypot, "Wrong loading order")
+
 function vector.new(a, b, c)
 	if type(a) == "table" then
 		assert(a.x and a.y and a.z, "Invalid vector passed to vector.new()")
@@ -19,7 +31,7 @@ function vector.equals(a, b)
 end
 
 function vector.length(v)
-	return math.hypot(v.x, math.hypot(v.y, v.z))
+	return math_hypot(v.x, math_hypot(v.y, v.z))
 end
 
 function vector.normalize(v)
@@ -33,17 +45,17 @@ end
 
 function vector.floor(v)
 	return {
-		x = math.floor(v.x),
-		y = math.floor(v.y),
-		z = math.floor(v.z)
+		x = math_floor(v.x),
+		y = math_floor(v.y),
+		z = math_floor(v.z)
 	}
 end
 
 function vector.round(v)
 	return {
-		x = math.floor(v.x + 0.5),
-		y = math.floor(v.y + 0.5),
-		z = math.floor(v.z + 0.5)
+		x = math_floor(v.x + 0.5),
+		y = math_floor(v.y + 0.5),
+		z = math_floor(v.z + 0.5)
 	}
 end
 
@@ -59,7 +71,7 @@ function vector.distance(a, b)
 	local x = a.x - b.x
 	local y = a.y - b.y
 	local z = a.z - b.z
-	return math.hypot(x, math.hypot(y, z))
+	return math_hypot(x, math_hypot(y, z))
 end
 
 function vector.direction(pos1, pos2)
@@ -74,7 +86,7 @@ function vector.angle(a, b)
 	local dotp = vector.dot(a, b)
 	local cp = vector.cross(a, b)
 	local crossplen = vector.length(cp)
-	return math.atan2(crossplen, dotp)
+	return math_atan2(crossplen, dotp)
 end
 
 function vector.dot(a, b)
@@ -143,18 +155,18 @@ function vector.sort(a, b)
 end
 
 local function sin(x)
-	if x % math.pi == 0 then
+	if x % math_pi == 0 then
 		return 0
 	else
-		return math.sin(x)
+		return math_sin(x)
 	end
 end
 
 local function cos(x)
-	if x % math.pi == math.pi / 2 then
+	if x % math_pi == math_pi / 2 then
 		return 0
 	else
-		return math.cos(x)
+		return math_cos(x)
 	end
 end
 
@@ -178,7 +190,7 @@ function vector.rotate(v, rot)
 	local sinroll = sin(-rot.z)
 	local cospitch = cos(rot.x)
 	local cosyaw = cos(rot.y)
-	local cosroll = math.cos(rot.z)
+	local cosroll = cos(rot.z)
 	-- Rotation matrix that applies yaw, pitch and roll
 	local matrix = {
 		{
@@ -207,7 +219,7 @@ end
 
 function vector.dir_to_rotation(forward, up)
 	forward = vector.normalize(forward)
-	local rot = {x = math.asin(forward.y), y = -math.atan2(forward.x, forward.z), z = 0}
+	local rot = {x = math_asin(forward.y), y = -math_atan2(forward.x, forward.z), z = 0}
 	if not up then
 		return rot
 	end
