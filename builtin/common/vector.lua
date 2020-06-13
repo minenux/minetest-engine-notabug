@@ -217,32 +217,58 @@ function vector.rotate(v, rot)
 	)
 end
 
+-- dir_to_rotation implementation
+
+-- Excerpt from PR #8515, converted to specify the matrix as multiple args.
+local function m3arg_to_pitch_yaw_roll(m11, m12, m13, m21, m22, m23, m31, m32, m33)
+	local y = math_atan2(-m13, m33)
+	local c2 = math_sqrt(m21^2 + m22^2)
+	local x = math_atan2(m23, c2)
+	local s1 = math_sin(y)
+	local c1 = math_cos(y)
+	local z = math_atan2(s1 * m32 + c1 * m12, s1 * m31 + c1 * m11)
+	return x, y, z
+end
+
+-- Cross product with one argument per component.
+local function v3arg_cross(x1, y1, z1, x2, y2, z2)
+	return y1*z2 - z1*y2, z1*x2 - x1*z2, x1*y2 - y1*x2
+end
+
+-- Normalization with one argument per component, returning length.
+local function v3arg_normalize(x, y, z)
+	local len = math_hypot(x, math_hypot(y, z))
+	return x / len, y / len, z / len, len
+end
+
 function vector.dir_to_rotation(forward, up)
-	forward = vector.normalize(forward)
-	local rot = {x = math_asin(forward.y), y = -math_atan2(forward.x, forward.z), z = 0}
+	-- Normalize forward, defaulting to 0,0,1.
+	local fx, fy, fz, len = v3arg_normalize(forward.x, forward.y, forward.z)
+	if len == 0 then
+		-- Zero length
+		fx, fy, fz = 0, 0, 1
+	end
+
 	if not up then
-		return rot
+		return {x = math_asin(fy), y = -math_atan2(fx, fz), z = 0}
 	end
-	assert(vector.dot(forward, up) < 0.000001,
-			"Invalid vectors passed to vector.dir_to_rotation().")
-	up = vector.normalize(up)
-	-- Calculate vector pointing up with roll = 0, just based on forward vector.
-	local forwup = vector.rotate({x = 0, y = 1, z = 0}, rot)
-	-- 'forwup' and 'up' are now in a plane with 'forward' as normal.
-	-- The angle between them is the absolute of the roll value we're looking for.
-	rot.z = vector.angle(forwup, up)
+	local ux, uy, uz = up.x, up.y, up.z
 
-	-- Since vector.angle never returns a negative value or a value greater
-	-- than math.pi, rot.z has to be inverted sometimes.
-	-- To determine wether this is the case, we rotate the up vector back around
-	-- the forward vector and check if it worked out.
-	local back = vector.rotate_around_axis(up, forward, -rot.z)
+	-- Synthesize a right vector via cross product of up and forward.
+	local rx, ry, rz = v3arg_cross(ux, uy, uz, fx, fy, fz)
 
-	-- We don't use vector.equals for this because of floating point imprecision.
-	if (back.x - forwup.x) * (back.x - forwup.x) +
-			(back.y - forwup.y) * (back.y - forwup.y) +
-			(back.z - forwup.z) * (back.z - forwup.z) > 0.0000001 then
-		rot.z = -rot.z
+	-- Normalize right, defaulting to 1,0,0.
+	rx, ry, rz, len = v3arg_normalize(rx, ry, rz)
+	if len == 0 then
+		-- Zero length
+		rx, ry, rz = 1, 0, 0
 	end
-	return rot
+
+	-- Calculate a new up vector as cross product of forward and right.
+	-- The resulting up vector is guaranteed to be normalized.
+	ux, uy, uz = v3arg_cross(fx, fy, fz,  rx, ry, rz)
+
+	-- We have an orthogonal matrix now; convert it to Euler.
+	local x, y, z = m3arg_to_pitch_yaw_roll(rx, ux, fx, ry, uy, fy, rz, uz, fz)
+	return {x = x, y = y, z = z}
 end
