@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/string.h"
 #include "util/serialize.h"
 #include <cmath>
+#include <cinttypes>
 
 class TestSerialization : public TestBase {
 public:
@@ -630,6 +631,8 @@ void TestSerialization::testFloatFormat()
 	FloatType type = getFloatSerializationType();
 	u32 i;
 	f32 fs, fm;
+	u64 j;
+	f64 ds, dm;
 
 	// Check precision of float calculations on this platform
 	const std::unordered_map<f32, u32> float_results = {
@@ -653,8 +656,35 @@ void TestSerialization::testFloatFormat()
 
 		fs = u32Tof32Slow(v.second);
 		if (std::fabs(v.first - fs) > std::fabs(v.first * 0.000005f)) {
-			printf("Inaccurate float values on 0x%X, expected %.9g, actual 0x%.9g\n",
+			printf("Inaccurate float values on 0x%X, expected %.9g, actual %.9g\n",
 				v.second, v.first, fs);
+			UASSERT(false);
+		}
+	}
+
+	const std::unordered_map<f64, u64> double_results = {
+		{  0.0, 0x0000000000000000ULL },
+		{  1.0, 0x3FF0000000000000ULL },
+		{ -1.0, 0xBFF0000000000000ULL },
+		{  0.1, 0x3FB999999999999AULL },
+		{ -0.1, 0xBFB999999999999AULL },
+		{ 286513795825077.25, 0x42F04953105FDB54ULL },
+		{ -8297197891621210., 0xC33D7A41ECF6115AULL },
+		{  0.5, 0x3FE0000000000000ULL },
+		{ -0.5, 0xBFE0000000000000ULL }
+	};
+	for (const auto &v : double_results) {
+		j = f64Tou64Slow(v.first);
+		if (v.second - j > 32 && j - v.second > 32) {
+			printf("Inaccurate double values on %.17g, expected 0x%" PRIX64 ", actual 0x%" PRIX64 "\n",
+				v.first, v.second, j);
+			UASSERT(false);
+		}
+
+		ds = u64Tof64Slow(v.second);
+		if (std::fabs(v.first - ds) > std::fabs(v.first * 0.000000000000005)) {
+			printf("Inaccurate double values on 0x%" PRIX64 ", expected %.17g, actual %.17g\n",
+				v.second, v.first, ds);
 			UASSERT(false);
 		}
 	}
@@ -695,7 +725,7 @@ void TestSerialization::testFloatFormat()
 	};
 
 	// Use step of prime 277 to speed things up from 3 minutes to a few seconds
-	// Test from 0 to 0xFF800000UL (positive)
+	// Test from 0 to 0x7F800000UL (positive)
 	for (i = 0x00000000UL; i <= 0x7F800000UL; i += 277)
 		UASSERT(test_single(i));
 
@@ -706,6 +736,36 @@ void TestSerialization::testFloatFormat()
 	// Test from 0x80000000UL to 0xFF800000UL (negative)
 	for (i = 0x80000000UL; i <= 0xFF800000UL; i += 277)
 		UASSERT(test_single(i));
+
+	auto test_double = [&ds, &dm](const u64 &j) -> bool {
+		memcpy(&dm, &j, 4);
+		ds = u64Tof64Slow(j);
+		if (dm != ds) {
+			printf("u64Tof64Slow failed on 0x%" PRIX64 ", expected %.17g, actual %.17g\n",
+				j, dm, ds);
+			return false;
+		}
+		if (f64Tou64Slow(ds) != j) {
+			printf("f64Tou64Slow failed on %.17g, expected 0x%" PRIX64 ", actual 0x%" PRIX64 "\n",
+				ds, j, f64Tou64Slow(ds));
+			return false;
+		}
+		return true;
+	};
+
+	// Use step of prime 93439286131 to speed things up
+	// Test from 0 to 0xFF800000ULL (positive)
+	for (j = 0x0000000000000001ULL; j <= 0x7FF0000000000000ULL; j += 93439286131ULL)
+		UASSERT(test_double(j));
+
+	// Ensure +inf and -inf are tested
+	UASSERT(test_double(0x7FF0000000000000ULL));
+	UASSERT(test_double(0xFFF0000000000000ULL));
+
+	// Use a different step (but still prime) to test different numbers
+	// Test from 0x8000000000000000ULL to 0xFFF0000000000000ULL (negative)
+	for (j = 0x8000000000000001UL; j <= 0xFFF0000000000000UL; j += 93439286159ULL)
+		UASSERT(test_double(j));
 }
 
 const u8 TestSerialization::test_serialized_data[12 * 13 - 8] = {

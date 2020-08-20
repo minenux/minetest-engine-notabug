@@ -34,12 +34,12 @@ f32 u32Tof32Slow(u32 i)
 {
 	// clang-format off
 	int exp = (i >> 23) & 0xFF;
-	u32 sign = i & 0x80000000UL;
+	bool sign = i >= 0x80000000UL;
 	u32 imant = i & 0x7FFFFFUL;
 	if (exp == 0xFF) {
 		// Inf/NaN
 		if (imant == 0) {
-			if (std::numeric_limits<f32>::has_infinity)	
+			if (std::numeric_limits<f32>::has_infinity)
 				return sign ? -std::numeric_limits<f32>::infinity() :
 					std::numeric_limits<f32>::infinity();
 			return sign ? std::numeric_limits<f32>::max() :
@@ -72,14 +72,15 @@ u32 f32Tou32Slow(f32 f)
 		return signbit | 0x7F800000UL;
 	int exp = 0; // silence warning
 	f32 mant = frexpf(f, &exp);
-	u32 imant = (u32)std::floor((signbit ? -16777216.f : 16777216.f) * mant);
+	u32 imant = (u32)std::floor((signbit ? -0x1.0p24f : 0x1.0p24f) * mant);
 	exp += 126;
 	if (exp <= 0) {
 		// Denormal
+		// -31 is used so that (1 - exp) is always < 32.
 		return signbit | (exp <= -31 ? 0 : imant >> (1 - exp));
 	}
 
-	if (exp >= 255) {
+	if (exp >= 0xFF) {
 		// Overflow due to the platform having exponents bigger than IEEE ones.
 		// Return signed infinity.
 		return signbit | 0x7F800000UL;
@@ -87,6 +88,66 @@ u32 f32Tou32Slow(f32 f)
 
 	// Regular number
 	return signbit | (exp << 23) | (imant & 0x7FFFFFUL);
+}
+
+// Same as u32Tof32Skiw but for doubles
+f64 u64Tof64Slow(u64 i)
+{
+	// clang-format off
+	int exp = (i >> 52) & 0x7FF;
+	bool sign = i >= 0x8000000000000000ULL;
+	u64 imant = i & 0xFFFFFFFFFFFFFULL;
+	if (exp == 0x7FF) {
+		// Inf/NaN
+		if (imant == 0) {
+			if (std::numeric_limits<f64>::has_infinity)
+				return sign ? -std::numeric_limits<f64>::infinity() :
+					std::numeric_limits<f64>::infinity();
+			return sign ? std::numeric_limits<f64>::max() :
+				std::numeric_limits<f64>::lowest();
+		}
+		return std::numeric_limits<f64>::has_quiet_NaN ?
+			std::numeric_limits<f64>::quiet_NaN() : -0.f;
+	}
+
+	if (!exp) {
+		// Denormal or zero
+		return sign ? -ldexp((f64)imant, -1074) : ldexp((f64)imant, -1074);
+	}
+
+	return sign ? -ldexp((f64)(imant | 0x10000000000000ULL), exp - 1075) :
+		ldexp((f64)(imant | 0x10000000000000ULL), exp - 1075);
+	// clang-format on
+}
+
+// Same as f32Tou32Slow but for doubles
+u64 f64Tou64Slow(f64 f)
+{
+	u64 signbit = std::copysign(1.0, f) == 1.0 ? 0 : 0x8000000000000000ULL;
+	if (f == 0.)
+		return signbit;
+	if (std::isnan(f))
+		return signbit | 0x7FF8000000000000ULL;
+	if (std::isinf(f))
+		return signbit | 0x7FF0000000000000ULL;
+	int exp = 0; // silence warning
+	f64 mant = frexp(f, &exp);
+	u64 imant = (u64)std::floor((signbit ? -0x1.0p53 : 0x1.0p53) * mant);
+	exp += 1022;
+	if (exp <= 0) {
+		// Denormal
+		// -63 is used so that (1 - exp) is always < 64.
+		return signbit | (exp <= -63 ? 0 : imant >> (1 - exp));
+	}
+
+	if (exp >= 0x7FF) {
+		// Overflow due to the platform having exponents bigger than IEEE ones.
+		// Return signed infinity.
+		return signbit | 0x7FF0000000000000ULL;
+	}
+
+	// Regular number
+	return signbit | (u64(exp) << 52) | (imant & 0xFFFFFFFFFFFFFULL);
 }
 
 // This test needs the following requisites in order to work:
