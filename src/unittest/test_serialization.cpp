@@ -648,7 +648,7 @@ void TestSerialization::testFloatFormat()
 	};
 	for (const auto &v : float_results) {
 		i = f32Tou32Slow(v.first);
-		if (std::abs((s64)v.second - i) > 32) {
+		if (std::abs(s64(v.second - i)) > 31) {
 			printf("Inaccurate float values on %.9g, expected 0x%X, actual 0x%X\n",
 				v.first, v.second, i);
 			UASSERT(false);
@@ -675,7 +675,7 @@ void TestSerialization::testFloatFormat()
 	};
 	for (const auto &v : double_results) {
 		j = f64Tou64Slow(v.first);
-		if (v.second - j > 32 && j - v.second > 32) {
+		if (s64(v.second >> 1) - s64(j >> 1) > 15) {
 			printf("Inaccurate double values on %.17g, expected 0x%" PRIX64 ", actual 0x%" PRIX64 "\n",
 				v.first, v.second, j);
 			UASSERT(false);
@@ -689,12 +689,6 @@ void TestSerialization::testFloatFormat()
 		}
 	}
 
-	if (type == FLOATTYPE_SLOW) {
-		// conversion using memcpy is not possible
-		// Skip exact float comparison checks below
-		return;
-	}
-
 	// The code below compares the IEEE conversion functions with a
 	// known good IEC559/IEEE754 implementation. This test neeeds
 	// IEC559 compliance in the compiler.
@@ -705,8 +699,12 @@ void TestSerialization::testFloatFormat()
 #else
 	bool is_iec559 = std::numeric_limits<f32>::is_iec559;
 #endif
-	if (!is_iec559)
+	if (!is_iec559 || type == FLOATTYPE_SLOW) {
+		// Skip exact float comparison checks below
+		puts("NOTE: Skipping comparison with this machine's implementation of IEEE"
+			" because the platform does not support the right float format");
 		return;
+	}
 
 	auto test_single = [&fs, &fm](const u32 &i) -> bool {
 		memcpy(&fm, &i, 4);
