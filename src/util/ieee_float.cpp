@@ -90,7 +90,7 @@ u32 f32Tou32Slow(f32 f)
 	return signbit | (exp << 23) | (imant & 0x7FFFFFUL);
 }
 
-// Same as u32Tof32Skiw but for doubles
+// Same as u32Tof32Slow but for doubles
 f64 u64Tof64Slow(u64 i)
 {
 	// clang-format off
